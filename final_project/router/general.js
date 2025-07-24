@@ -5,67 +5,99 @@ let users = require("./auth_users.js").users;
 const public_users = express.Router();
 
 
-public_users.post("/register", (req,res) => {
-    const username = req.body.username;
-    const password = req.body.password;
+public_users.post("/register", (req, res) => {
+  const username = req.body.username;
+  const password = req.body.password;
 
-    if (username && password) {
+  if (username && password) {
+    if (isValid(username)) {
+      users.push({ username, password });
+      return res.status(200).json({ message: "User successfully registered. Now you can login" });
+    } else {
+      return res.status(404).json({ message: "User already exists!" });
+    }
+  }
 
-        if (isValid(username)) {
-            users.push({"username": username, "password": password});
-            return res.status(200).json({message: "User successfully registered. Now you can login"});
-        } else {
-            return res.status(404).json({message: "User already exists!"});
-        }
+  return res.status(404).json({ message: "Unable to register user." });
+});
+
+public_users.get('/', (req, res) => {
+  const getBooks = new Promise((resolve, reject) => {
+    resolve(books);
+  });
+
+  getBooks
+    .then((bookList) => res.status(200).json({ data: bookList }))
+    .catch(() => res.status(500).json({ message: "Failed to fetch books" }));
+});
+
+
+public_users.get('/isbn/:isbn', (req, res) => {
+  const { isbn } = req.params;
+
+  const getBookByISBN = new Promise((resolve, reject) => {
+    if (books[isbn]) resolve(books[isbn]);
+    else reject("Book not found");
+  });
+
+  getBookByISBN
+    .then((book) => res.status(200).json({ data: book }))
+    .catch((err) => res.status(404).json({ message: err }));
+});
+
+
+public_users.get('/author/:author', (req, res) => {
+  const { author } = req.params;
+
+  const getBooksByAuthor = new Promise((resolve, reject) => {
+    let results = [];
+
+    for (let isbn in books) {
+      if (books[isbn].author === author) results.push(books[isbn]);
     }
 
-    return res.status(404).json({message: "Unable to register user."});
+    resolve(results);
+  });
+
+  getBooksByAuthor
+    .then((books) => res.status(200).json({ data: books }))
+    .catch(() => res.status(500).json({ message: "Could not find books by author" }));
 });
 
-public_users.get('/',function (req, res) {
-  return res.status(200).json({data: books});
+
+public_users.get('/title/:title', (req, res) => {
+  const { title } = req.params;
+
+  const getBookByTitle = new Promise((resolve, reject) => {
+    let result = null;
+
+    for (let isbn in books) {
+      if (books[isbn].title === title) {
+        result = books[isbn];
+        break;
+      }
+    }
+
+    if (result) resolve(result);
+    else reject("Book not found by title");
+  });
+
+  getBookByTitle
+    .then((book) => res.status(200).json({ data: book }))
+    .catch((err) => res.status(404).json({ message: err }));
 });
 
-public_users.get('/isbn/:isbn',function (req, res) {
-  const {isbn} = req.params; 
-   const book = books[isbn]; 
 
-   if(!book) res.json({message: "The book with the given isbn was not found"}) 
+public_users.get('/review/:isbn', (req, res) => {
+  const { isbn } = req.params;
 
-  return res.status(200).json({data: book});
- });
-  
-// Get book details based on author
-public_users.get('/author/:author',function (req, res) {
-  const { author } = req.params; 
+  const book = books[isbn];
 
-  let booksByAuthor = []
-
-  for(let isbn in books){ 
-    if(books[isbn].author == author) booksByAuthor.push(books[isbn]) 
+  if (!book) {
+    return res.status(404).json({ message: "Book not found" });
   }
 
-  return res.status(200).json({data: booksByAuthor});
-});
-
-// Get all books based on title
-public_users.get('/title/:title',function (req, res) {
-  const { title } = req.params;  
-
-   let booksByTitle = {}
-
-  for(let isbn in books){ 
-    if(books[isbn].title == title ) booksByTitle = books[isbn]
-  }
-
-  return res.status(200).json({data: booksByTitle});
-
-});
-
-//  Get book review
-public_users.get('/review/:isbn',function (req, res) {
-  //Write your code here
-  return res.status(300).json({message: "Yet to be implemented"});
+  return res.status(200).json({ reviews: book.reviews });
 });
 
 module.exports.general = public_users;
